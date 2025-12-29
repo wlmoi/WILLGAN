@@ -1,126 +1,140 @@
-`timescale 1ns / 1ps
 
+`timescale 1ns / 1ps
 `ifndef LAYER2_GENERATOR_V2_V
 `define LAYER2_GENERATOR_V2_V
-
-// Layer 2 Generator (v2 - New Architecture)
-// Input: 256 neurons (Q5.10 from ReLU stage)
-// Output: 256 neurons (Q5.10 pre-activation)
-// Weight matrix: 256×256
-// No activation function (goes to external ReLU stage)
-//
-module layer2_generator_v2 (
+// Layer 2 Generator (256x256 MAC, Q5.10, ReLU)
+module layer2_generator_v2(
     input wire clk,
     input wire rst,
     input wire start,
-    // Flattened input: 256 elements × 16 bits = 4096 bits
-    input wire signed [16*256-1:0] flat_input,
-    // Flattened output: 256 elements × 16 bits = 4096 bits
-    output reg signed [16*256-1:0] flat_output,
+    input wire signed [16*256-1:0] flat_input, // Q5.10
+    output reg signed [16*256-1:0] flat_output, // Q5.10
     output reg done
 );
-
-    // Temporary variables for output saturation
-    reg signed [31:0] acc_final;
-    reg signed [15:0] out_val;
-
-    // Memory for weights and biases (Q5.10 format)
-    (* rom_style = "block" *) reg signed [15:0] weights [0:65535]; // 256×256
-    (* rom_style = "block" *) reg signed [15:0] biases [0:255];
-
-    localparam TOTAL_NEURONS = 256;
-    localparam TOTAL_INPUTS = 256;
-    
-    reg [15:0] epoch;
+    localparam N = 256;
+    // Memory for weights and biases
+    (* rom_style = "block" *) reg signed [15:0] weights [0:N*N-1]; // Q5.10
+    (* rom_style = "block" *) reg signed [15:0] biases [0:N-1];    // Q5.10
     initial begin
         $readmemh("mem/epoch300_G_l2_W.mem", weights);
         $readmemh("D:/WILLGAN/hardware/layers/mem/epoch300_G_l2_W.mem", weights);
         $readmemh("mem/epoch300_G_l2_B.mem", biases);
         $readmemh("D:/WILLGAN/hardware/layers/mem/epoch300_G_l2_B.mem", biases);
-        epoch = 16'd0;
     end
 
-    // Sequential MAC computation
-    reg [8:0] neuron_idx;  // 0..255
-    reg [8:0] input_idx;   // 0..255
+    // State
+    reg [8:0] neuron_idx;
+    reg [8:0] input_idx;
     reg busy;
-    reg write_output; // state untuk menulis output setelah akumulasi
-    reg signed [47:0] accumulator;  // Q15.32 accumulator for higher precision
-    
-    reg signed [15:0] current_input;
-    reg signed [15:0] current_weight;
-    reg signed [15:0] current_bias;
-    wire signed [31:0] product_q20;
-    wire signed [15:0] product_q10;
-    assign product_q20 = current_input * current_weight;
-    assign product_q10 = product_q20 >>> 10; // Q12.20 -> Q6.10
-    
+    reg signed [47:0] accumulator;
+    reg signed [15:0] mac_input, mac_weight;
+    reg signed [31:0] mac_product;
+    reg signed [47:0] acc_final_reg;
+    reg [8:0] neuron_idx_reg;
+    reg write_output_reg;
+    reg dummy_cycle;
+
+    // Output pipeline
+    reg signed [15:0] out_val_reg, relu_out_reg, relu_out_reg2;
+
+    // ReLU
+    wire signed [15:0] relu_out;
+    assign relu_out = (out_val_reg[15]) ? 16'sd0 : out_val_reg;
+
     always @(posedge clk) begin
         if (rst) begin
-            neuron_idx <= 9'd0;
-            input_idx <= 9'd0;
-            busy <= 1'b0;
-            write_output <= 1'b0;
-            done <= 1'b0;
-            accumulator <= 48'sd0;
-            flat_output <= {(16*256){1'b0}};
+            neuron_idx <= 0;
+            input_idx <= 0;
+            busy <= 0;
+            done <= 0;
+            accumulator <= 0;
+            flat_output <= 0;
+            acc_final_reg <= 0;
+            neuron_idx_reg <= 0;
+            write_output_reg <= 0;
+            dummy_cycle <= 0;
+            out_val_reg <= 0;
+            relu_out_reg <= 0;
+            relu_out_reg2 <= 0;
         end else begin
+            // Output pipeline
+            // Q5.10 output: saturate to 16 bits, truncate properly, with correct sign extension
+            $display("[L2GEN DEBUG] acc_final_reg=%0d (hex=%h)", acc_final_reg, acc_final_reg);
+            if (acc_final_reg > 32767 << 10) begin
+                out_val_reg <= 16'sh7FFF;
+                $display("[L2GEN DEBUG] SATURATE: acc_final_reg > max, out_val_reg=0x%h", 16'sh7FFF);
+            end else if (acc_final_reg < -32768 << 10) begin
+                out_val_reg <= -16'sh8000;
+                $display("[L2GEN DEBUG] SATURATE: acc_final_reg < min, out_val_reg=0x%h", -16'sh8000);
+            end else begin
+                // Proper sign extension and Q5.10 truncation
+                $display("[L2GEN DEBUG] acc_final_reg[25:10]=0x%h, sign-extended=0x%h", acc_final_reg[25:10], {acc_final_reg[25], acc_final_reg[24:10]});
+                out_val_reg <= {acc_final_reg[25], acc_final_reg[24:10]};
+                $display("[L2GEN DEBUG] out_val_reg assigned=0x%h", {acc_final_reg[25], acc_final_reg[24:10]});
+            end
+            relu_out_reg <= relu_out;
+            relu_out_reg2 <= relu_out_reg;
+            if (write_output_reg) begin
+                flat_output[(N-1-neuron_idx_reg)*16 +: 16] = relu_out_reg2;
+                $display("[L2GEN OUT] neuron=%0d out_val_reg=%0d relu_out_reg=%0d relu_out_reg2=%0d flat_output[%0d]=%0d", neuron_idx_reg, out_val_reg, relu_out_reg, relu_out_reg2, (N-1-neuron_idx_reg), relu_out_reg2);
+            end
+
+            // Debug: print first few weights, biases, and input values
             if (start && !busy) begin
-                // Start computation
-                busy <= 1'b1;
-                write_output <= 1'b0;
-                done <= 1'b0;
-                neuron_idx <= 9'd0;
-                input_idx <= 9'd0;
-                // Load first bias (Q6.10, extend to accumulator)
-                current_bias <= biases[0];
+                $display("[L2GEN] Bias[0]=%0d (hex=%04h)", biases[0], biases[0]);
+                $display("[L2GEN] Weight[0]=%0d (hex=%04h)", weights[0], weights[0]);
+                $display("[L2GEN] Weight[1]=%0d (hex=%04h)", weights[1], weights[1]);
+                $display("[L2GEN] Weight[255]=%0d (hex=%04h)", weights[255], weights[255]);
+                $display("[L2GEN] Input[0]=%0d (hex=%04h)", flat_input[16*255 +: 16], flat_input[16*255 +: 16]);
+                $display("[L2GEN] Input[1]=%0d (hex=%04h)", flat_input[16*254 +: 16], flat_input[16*254 +: 16]);
+                $display("[L2GEN] Input[255]=%0d (hex=%04h)", flat_input[15:0], flat_input[15:0]);
+            end
+            if (busy && input_idx < 3) begin
+                $display("[L2GEN] neuron_idx=%0d input_idx=%0d mac_input=%0d (hex=%04h) mac_weight=%0d (hex=%04h) acc=%0d", neuron_idx, input_idx, mac_input, mac_input, mac_weight, mac_weight, accumulator);
+            end
+
+            if (start && !busy) begin
+                busy <= 1;
+                done <= 0;
+                neuron_idx <= 0;
+                input_idx <= 0;
                 accumulator <= { {32{biases[0][15]}}, biases[0] };
+                acc_final_reg <= 0;
+                neuron_idx_reg <= 0;
+                write_output_reg <= 0;
+                dummy_cycle <= 0;
             end else if (busy) begin
-                if (!write_output) begin
-                    if (input_idx < TOTAL_INPUTS) begin
-                        // Load current input and weight
-                        current_input <= flat_input[(TOTAL_INPUTS - 1 - input_idx) * 16 +: 16];
-                        current_weight <= weights[neuron_idx * TOTAL_INPUTS + input_idx];
-
-                        // Akumulasi product_q10 setiap siklus
-                        accumulator <= accumulator + product_q10;
-                        input_idx <= input_idx + 9'd1;
+                if (!write_output_reg && !dummy_cycle) begin
+                    if (input_idx < N) begin
+                        mac_input = flat_input[(N-1-input_idx)*16 +: 16];
+                        mac_weight = weights[neuron_idx*N + input_idx];
+                        mac_product = mac_input * mac_weight; // Q10.20
+                        accumulator <= accumulator + (mac_product >>> 10); // Q5.10
+                        input_idx <= input_idx + 1;
                     end else begin
-                        // Selesai akumulasi, next cycle write output
-                        write_output <= 1'b1;
+                        dummy_cycle <= 1;
                     end
+                end else if (!write_output_reg && dummy_cycle) begin
+                    acc_final_reg <= accumulator;
+                    neuron_idx_reg <= neuron_idx;
+                    write_output_reg <= 1;
+                    dummy_cycle <= 0;
                 end else begin
-                    // Write output for current neuron
-                    acc_final = accumulator;
-                    if (acc_final > 32'sh7FFF)
-                        out_val = 16'sh7FFF;
-                    else if (acc_final < -32'sh8000)
-                        out_val = -16'sh8000;
-                    else
-                        out_val = acc_final[15:0];
-
-                    flat_output[(TOTAL_NEURONS - 1 - neuron_idx) * 16 +: 16] = out_val;
-
-                    if (neuron_idx < TOTAL_NEURONS - 1) begin
-                        // Move to next neuron
-                        neuron_idx <= neuron_idx + 9'd1;
-                        input_idx <= 9'd0;
-                        current_bias <= biases[neuron_idx + 9'd1];
-                        accumulator <= { {32{biases[neuron_idx + 9'd1][15]}}, biases[neuron_idx + 9'd1] };
-                        write_output <= 1'b0;
+                    if (neuron_idx < N-1) begin
+                        neuron_idx <= neuron_idx + 1;
+                        input_idx <= 0;
+                        accumulator <= { {32{biases[neuron_idx+1][15]}}, biases[neuron_idx+1] };
+                        write_output_reg <= 0;
                     end else begin
-                        // All neurons complete
-                        busy <= 1'b0;
-                        done <= 1'b1;
-                        write_output <= 1'b0;
+                        busy <= 0;
+                        done <= 1;
+                        write_output_reg <= 0;
                     end
                 end
             end else if (done) begin
-                done <= 1'b0;  // Clear done after 1 cycle
+                done <= 0;
             end
         end
     end
-
 endmodule
-
 `endif // LAYER2_GENERATOR_V2_V

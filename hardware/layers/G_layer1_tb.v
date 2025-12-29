@@ -28,6 +28,7 @@ module G_layer1_tb;
     always #5 clk = ~clk; // 100MHz
 
     integer i;
+    integer f;
     reg signed [15:0] input_vec [0:TOTAL_INPUTS-1];
     reg signed [15:0] output_vec [0:TOTAL_NEURONS-1];
     reg signed [15:0] relu_vec [0:TOTAL_NEURONS-1];
@@ -83,9 +84,18 @@ module G_layer1_tb;
         $display("Layer 1 output (pre-activation):");
         for (i = 0; i < 10; i = i + 1) $display("%0d: %0d", i, output_vec[i]);
         $display("...");
-        $display("Layer 1 output (after ReLU):");
-        for (i = 0; i < 10; i = i + 1) $display("%0d: %0d", i, relu_vec[i]);
-        $display("...");
+        $display("Layer 1 output (after ReLU, all 256):");
+        for (i = 0; i < TOTAL_NEURONS; i = i + 1) $display("%0d: %0d", i, relu_vec[i]);
+
+
+        // Save ReLU output to .mem file for Layer 2 input
+        f = $fopen("mem/layer1_relu_output.mem", "w");
+        for (i = 0; i < TOTAL_NEURONS; i = i + 1) begin
+            $fdisplay(f, "%04h", relu_vec[i][15:0]);
+        end
+        $fclose(f);
+        $display("Layer 1 ReLU output saved to mem/layer1_relu_output.mem");
+
         $display("Layer 1 test completed.");
         $finish;
     end

@@ -65,8 +65,9 @@ module G_layer2_tb;
     endtask
 
     initial begin
-        // Set all input_vec values to 0 for test
-        for (i = 0; i < TOTAL_INPUTS; i = i + 1) input_vec[i] = 0;
+        // Load input vector for Layer 2 from mem/epoch300_G_l1_W.mem (output of Layer 1 generator)
+        $readmemh("mem/layer1_relu_output.mem", input_vec);
+        $readmemh("D:/WILLGAN/hardware/layers/mem/layer1_relu_output.mem", input_vec);
 
         // Set reference values for Layer 2 output after ReLU (dari CSV referensi)
         ref_layer2[0] = 131;
