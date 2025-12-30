@@ -27,10 +27,13 @@ module layer2_discriminator_v2 (
     localparam TOTAL_NEURONS = 256;
     localparam TOTAL_INPUTS = 256;
     
+    // For simulation only. Remove or guard for synthesis.
+    `ifndef SYNTHESIS
     initial begin
         $readmemh("mem/epoch300_C_l2_W.mem", weights);
         $readmemh("mem/epoch300_C_l2_B.mem", biases);
     end
+    `endif
 
     // Sequential MAC computation
     reg [8:0] neuron_idx;  // 0..255

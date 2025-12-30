@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module G_layer1_tb;
+        integer clk_count;
     // Parameters
     localparam TOTAL_INPUTS = 64;
     localparam TOTAL_NEURONS = 256;
@@ -66,6 +67,7 @@ module G_layer1_tb;
         rst = 1;
         start = 0;
         flat_input = 0;
+        clk_count = 0;
         #20;
         rst = 0;
         #20;
@@ -77,7 +79,8 @@ module G_layer1_tb;
         start = 1;
         @(negedge clk);
         start = 0;
-        wait(done);
+        clk_count = 0;
+        while (!done) begin @(negedge clk); clk_count = clk_count + 1; end
         unflatten_output();
         relu_layer();
 
@@ -96,6 +99,7 @@ module G_layer1_tb;
         $fclose(f);
         $display("Layer 1 ReLU output saved to mem/layer1_relu_output.mem");
 
+        $display("Clock cycles: %0d", clk_count);
         $display("Layer 1 test completed.");
         $finish;
     end

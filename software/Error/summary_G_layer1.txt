@@ -1,0 +1,13 @@
+Layer: G_layer1
+Tanggal: 30 Desember 2025
+
+Total Data Points : 254
+MAE (Mean Abs Err): 0.13740
+MAPE (Mean % Err) : 0.27%
+Max Abs Error     : 0.50000 (at index 0)
+
+Insight:
+- Error rata-rata sangat kecil (<1), menandakan hasil hardware sangat akurat.
+- Hampir semua data error < 1%, kecuali beberapa titik (ditandai '<--').
+- Perbedaan terbesar pada index 0 (HW=33, SW=32.5)
+- Data 0 pada HW/SW menandakan neuron tidak aktif (ReLU).

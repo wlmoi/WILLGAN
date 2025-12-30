@@ -59,10 +59,13 @@ module layer1_generator_v2 (
                 // Start computation
                 busy <= 1'b1;
                 done <= 1'b0;
+        // For simulation only. Remove or guard for synthesis.
+        `ifndef SYNTHESIS
                 neuron_idx <= 9'd0;
                 input_idx <= 7'd0;
                 // Load first bias
                 current_bias <= biases[0];
+        `endif
                 accumulator <= { {10{biases[0][15]}}, biases[0], 22'b0 };
             end else if (busy) begin
                 if (input_idx < TOTAL_INPUTS) begin

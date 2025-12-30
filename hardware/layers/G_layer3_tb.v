@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module G_layer3_tb;
+        integer clk_count;
     localparam N_IN = 256;
     localparam N_OUT = 784;
 
@@ -46,18 +47,18 @@ module G_layer3_tb;
 
     initial begin
         // Load input from layer2_relu_output.mem
-        $readmemh("mem/layer2_relu_output.mem", input_vec);
-        $readmemh("D:/WILLGAN/hardware/layers/mem/layer2_relu_output.mem", input_vec);
+        $readmemh("hardware/layers/mem/layer2_relu_output.mem", input_vec);
 
         rst = 1; start = 0; flat_input = 0;
+        clk_count = 0;
         #20; rst = 0; #20;
         flatten_input();
         @(negedge clk);
         start = 1;
         @(negedge clk);
         start = 0;
-        wait (done == 1);
-        @(negedge clk);
+        clk_count = 0;
+        while (!done) begin @(negedge clk); clk_count = clk_count + 1; end
         unflatten_output();
 
         $display("Layer3 DUT finished. Showing first 16 outputs:");
@@ -73,6 +74,7 @@ module G_layer3_tb;
         // Tambahkan delay agar DUT sempat menulis file output.mem
         repeat (5) @(negedge clk);
 
+        $display("Clock cycles: %0d", clk_count);
         $finish;
     end
 endmodule

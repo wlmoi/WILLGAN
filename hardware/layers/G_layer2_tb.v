@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module G_layer2_tb;
+		integer clk_count;
 	localparam N = 256;
 
 	// Clock / reset / control
@@ -50,11 +51,11 @@ module G_layer2_tb;
 
 	initial begin
 		// load input memory (try relative and absolute paths)
-		$readmemh("mem/layer1_relu_output.mem", input_vec);
-		$readmemh("D:/WILLGAN/hardware/layers/mem/layer1_relu_output.mem", input_vec);
+		$readmemh("d:/WILLGAN/hardware/layers/mem/layer1_relu_output.mem", input_vec);
 
 		// reset pulse
 		rst = 1; start = 0; flat_input = 0;
+		clk_count = 0;
 		#20; rst = 0; #20;
 
 		// now set the DUT input (do not set it during reset)
@@ -65,10 +66,8 @@ module G_layer2_tb;
 		start = 1;
 		@(negedge clk);
 		start = 0;
-
-		// wait for completion
-		wait (done == 1);
-		@(negedge clk);
+		clk_count = 0;
+		while (!done) begin @(negedge clk); clk_count = clk_count + 1; end
 
 		// capture outputs
 		unflatten_output();
@@ -77,15 +76,20 @@ module G_layer2_tb;
 		$display("Layer2 DUT finished. Showing first 16 outputs (pre-ReLU):");
 		for (i = 0; i < 16; i = i + 1) $display("out[%0d] = %0d", i, output_vec[i]);
 
-		// dump full array as Python-friendly line (small output)
-		$write("hw_out = np.array([");
-		for (i = 0; i < N; i = i + 1) begin
-			$write("%0d", output_vec[i]);
-			if (i != N-1) $write(", ");
-		end
-		$write("], dtype=np.int16)\n");
+		   // dump full array as Python-friendly line (small output)
+		   $write("hw_out = np.array([");
+		   for (i = 0; i < N; i = i + 1) begin
+			   $write("%0d", output_vec[i]);
+			   if (i != N-1) $write(", ");
+		   end
+		   $write("], dtype=np.int16)\n");
 
-		$finish;
+		   // Save output to mem/layer2_relu_output.mem (hex, 16-bit signed)
+		   $writememh("mem/layer2_relu_output.mem", output_vec);
+		   $writememh("D:/WILLGAN/hardware/layers/mem/layer2_relu_output.mem", output_vec);
+
+		   $display("Clock cycles: %0d", clk_count);
+		   $finish;
 	end
 endmodule
 

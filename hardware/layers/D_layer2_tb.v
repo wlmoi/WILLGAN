@@ -1,41 +1,40 @@
 `timescale 1ns / 1ps
 
-module layer2_discriminator_tb;
-
-    // Inputs: 128 elements (from Discriminator layer 1 output)
-    reg signed [15:0] inputs [0:127];
-    reg signed [16*128-1:0] flat_input;
+module D_layer2_tb;
+        integer clk_count;
+    // Inputs: 256 elements (from previous layer)
+    reg signed [15:0] inputs [0:255];
+    reg signed [16*256-1:0] flat_input;
     reg clk;
     reg rst;
     reg start;
 
-    // Outputs: 32 elements
-    wire signed [16*32-1:0] flat_output;
+    // Outputs: 256 elements
+    wire signed [16*256-1:0] flat_output;
     wire done;
 
     // Instantiate Unit Under Test (UUT)
-    layer2_discriminator uut (
+    layer2_discriminator_v2 uut (
         .clk(clk),
         .rst(rst),
         .start(start),
-        .flat_input_flat(flat_input),
-        .flat_output_flat(flat_output),
+        .flat_input(flat_input),
+        .flat_output(flat_output),
         .done(done)
     );
 
-    // Keep the flattened bus updated
     integer i_pack;
     always @(*) begin
-        for (i_pack = 0; i_pack < 128; i_pack = i_pack + 1) begin
+        for (i_pack = 0; i_pack < 256; i_pack = i_pack + 1) begin
             flat_input[(i_pack+1)*16-1 -: 16] = inputs[i_pack];
         end
     end
 
-    // Helper to convert Q8.8 to real
-    function real q8_8_to_real;
+    // Helper to convert Q6.10 to real
+    function real q6_10_to_real;
         input signed [15:0] val;
         begin
-            q8_8_to_real = val / 256.0;
+            q6_10_to_real = val / 1024.0;
         end
     endfunction
 
@@ -48,28 +47,26 @@ module layer2_discriminator_tb;
     end
 
     initial begin
-        $dumpfile("vcd/discriminator_layer2_test.vcd");
-        $dumpvars(0, layer2_discriminator_tb);
+        $display("--------------------------------------------------");
+        $display("   TESTING DISCRIMINATOR LAYER 2");
+        $display("   256 inputs -> 256 neurons");
+        $display("--------------------------------------------------");
 
         // Reset
         rst = 1;
         start = 0;
+        clk_count = 0;
         #20;
         rst = 0;
 
         // Initialize inputs to zero
-        for (k = 0; k < 128; k = k + 1) begin
+        for (k = 0; k < 256; k = k + 1) begin
             inputs[k] = 16'sd0;
         end
 
-        $display("--------------------------------------------------");
-        $display("   TESTING DISCRIMINATOR LAYER 2");
-        $display("   128 inputs -> 32 neurons");
-        $display("--------------------------------------------------");
-
         // Test Case 1: Zero inputs (output should be bias only)
         $display("\nTest Case 1: Zero Inputs");
-        for (k = 0; k < 128; k = k + 1) begin
+        for (k = 0; k < 256; k = k + 1) begin
             inputs[k] = 16'sd0;
         end
 
@@ -78,20 +75,26 @@ module layer2_discriminator_tb;
         @(posedge clk);
         start = 0;
 
-        wait(done == 1);
+        // Count clock cycles until done
+        clk_count = 0;
+        while (!done) begin
+            @(posedge clk);
+            clk_count = clk_count + 1;
+        end
         #1;
 
         $display("Layer 2 Output (first 20 values with zero input):");
         for (m = 0; m < 20; m = m + 1) begin
             $display("[%2d] = %f (hex: %h)", 
                      m, 
-                     q8_8_to_real($signed(flat_output[(m+1)*16-1 -: 16])),
+                     q6_10_to_real($signed(flat_output[(m+1)*16-1 -: 16])),
                      flat_output[(m+1)*16-1 -: 16]);
         end
+        $display("Clock cycles: %0d", clk_count);
 
         // Test Case 2: Small random inputs
         $display("\nTest Case 2: Random Inputs");
-        for (k = 0; k < 128; k = k + 1) begin
+        for (k = 0; k < 256; k = k + 1) begin
             inputs[k] = $random % 256;
         end
 
@@ -100,16 +103,22 @@ module layer2_discriminator_tb;
         @(posedge clk);
         start = 0;
 
-        wait(done == 1);
+        // Count clock cycles until done
+        clk_count = 0;
+        while (!done) begin
+            @(posedge clk);
+            clk_count = clk_count + 1;
+        end
         #1;
 
         $display("Layer 2 Output (first 20 values with random input):");
         for (m = 0; m < 20; m = m + 1) begin
             $display("[%2d] = %f (hex: %h)", 
                      m, 
-                     q8_8_to_real($signed(flat_output[(m+1)*16-1 -: 16])),
+                     q6_10_to_real($signed(flat_output[(m+1)*16-1 -: 16])),
                      flat_output[(m+1)*16-1 -: 16]);
         end
+        $display("Clock cycles: %0d", clk_count);
 
         $display("--------------------------------------------------");
         $display("Layer 2 Test Complete");

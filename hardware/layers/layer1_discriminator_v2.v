@@ -27,12 +27,13 @@ module layer1_discriminator_v2 (
     localparam TOTAL_NEURONS = 256;
     localparam TOTAL_INPUTS = 784;
     
+    // For simulation only. Remove or guard for synthesis.
+    `ifndef SYNTHESIS
     initial begin
-        if (!$readmemh("mem/epoch300_C_l1_W.mem", weights))
-            $readmemh("D:/WILLGAN/hardware/layers/mem/epoch300_C_l1_W.mem", weights);
-        if (!$readmemh("mem/epoch300_C_l1_B.mem", biases))
-            $readmemh("D:/WILLGAN/hardware/layers/mem/epoch300_C_l1_B.mem", biases);
+        $readmemh("mem/epoch300_C_l1_W.mem", weights);
+        $readmemh("mem/epoch300_C_l1_B.mem", biases);
     end
+    `endif
 
     // Sequential MAC computation
     reg [8:0] neuron_idx;   // 0..255

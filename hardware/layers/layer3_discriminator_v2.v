@@ -27,12 +27,15 @@ module layer3_discriminator_v2 (
 
     localparam TOTAL_INPUTS = 256;
     
+    // For simulation only. Remove or guard for synthesis.
+    `ifndef SYNTHESIS
     initial begin
         $readmemh("mem/epoch300_C_l3_W.mem", weights);
         // Read single bias value into memory, lalu copy ke scalar
         $readmemh("mem/epoch300_C_l3_B.mem", bias_mem);
         bias = bias_mem[0];
     end
+    `endif
 
     // Sequential MAC computation
     reg [8:0] input_idx;   // 0..255

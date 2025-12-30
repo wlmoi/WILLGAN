@@ -28,8 +28,8 @@ module layer3_generator_v2 (
     localparam TOTAL_INPUTS = 256;
     
     initial begin
-        $readmemh("mem/epoch300_G_l3_W.mem", weights);
-        $readmemh("mem/epoch300_G_l3_B.mem", biases);
+        $readmemh("hardware/layers/mem/epoch300_G_l3_W.mem", weights);
+        $readmemh("hardware/layers/mem/epoch300_G_l3_B.mem", biases);
     end
 
     // Sequential MAC computation
@@ -39,10 +39,13 @@ module layer3_generator_v2 (
     reg signed [47:0] accumulator;  // Q15.32 accumulator for higher precision
     
     reg signed [15:0] current_input;
+    // For simulation only. Remove or guard for synthesis.
+    `ifndef SYNTHESIS
     reg signed [15:0] current_weight;
     reg signed [15:0] current_bias;
     wire signed [31:0] product;
     
+    `endif
     // MAC: accumulator += input * weight
     assign product = current_input * current_weight;
     
