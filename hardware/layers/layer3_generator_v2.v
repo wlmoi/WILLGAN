@@ -46,6 +46,14 @@ module layer3_generator_v2 (
     // MAC: accumulator += input * weight
     assign product = current_input * current_weight;
     
+    // Output pipeline registers
+    reg signed [15:0] acc_out_reg;
+    reg [9:0] neuron_idx_out_reg;
+    reg write_output_reg;
+    integer memfile;
+    reg output_written;
+    reg pipeline_valid;
+
     always @(posedge clk) begin
         if (rst) begin
             neuron_idx <= 10'd0;
@@ -54,6 +62,11 @@ module layer3_generator_v2 (
             done <= 1'b0;
             accumulator <= 48'sd0;
             flat_output <= {(16*784){1'b0}};
+            acc_out_reg <= 16'sd0;
+            neuron_idx_out_reg <= 10'd0;
+            write_output_reg <= 1'b0;
+            output_written <= 1'b0;
+            pipeline_valid <= 1'b0;
         end else begin
             if (start && !busy) begin
                 // Start computation
@@ -61,34 +74,34 @@ module layer3_generator_v2 (
                 done <= 1'b0;
                 neuron_idx <= 10'd0;
                 input_idx <= 9'd0;
-                // Load first bias
+                // Load first bias (Q5.10, sign-extended, no shift)
                 current_bias <= biases[0];
-                accumulator <= { {10{biases[0][15]}}, biases[0], 22'b0 };
+                accumulator <= { {32{biases[0][15]}}, biases[0] };
             end else if (busy) begin
                 if (input_idx < TOTAL_INPUTS) begin
                     // Load current input and weight
                     current_input <= flat_input[(TOTAL_INPUTS - 1 - input_idx) * 16 +: 16];
                     current_weight <= weights[neuron_idx * TOTAL_INPUTS + input_idx];
-                    
-                    if (input_idx > 0) begin
-                        // Accumulate previous product
-                        accumulator <= accumulator + {{4{product[31]}}, product};
-                    end
-                    
+                    // Accumulate product (Q5.10 * Q5.10 >> 10 = Q5.10)
+                    accumulator <= accumulator + (product >>> 10);
                     input_idx <= input_idx + 9'd1;
                 end else begin
-                    // Accumulate last product and write result
-                    accumulator <= accumulator + {{16{product[31]}}, product};
-                    
-                    // Extract Q5.10 from Q15.32 accumulator
-                    flat_output[(TOTAL_NEURONS - 1 - neuron_idx) * 16 +: 16] <= {accumulator[47], accumulator[36:22]};
-                    
+                    // Prepare output pipeline
+                    if (accumulator > 32767)
+                        acc_out_reg <= 16'sh7FFF;
+                    else if (accumulator < -32768)
+                        acc_out_reg <= -16'sh8000;
+                    else
+                        acc_out_reg <= accumulator[15:0];
+                    neuron_idx_out_reg <= neuron_idx;
+                    write_output_reg <= pipeline_valid; // Only write if pipeline is valid
+                    pipeline_valid <= 1'b1; // Set valid after first MAC
                     if (neuron_idx < TOTAL_NEURONS - 1) begin
                         // Move to next neuron
                         neuron_idx <= neuron_idx + 10'd1;
                         input_idx <= 9'd0;
                         current_bias <= biases[neuron_idx + 10'd1];
-                        accumulator <= { {10{biases[neuron_idx + 10'd1][15]}}, biases[neuron_idx + 10'd1], 22'b0 };
+                        accumulator <= { {32{biases[neuron_idx + 10'd1][15]}}, biases[neuron_idx + 10'd1] };
                     end else begin
                         // All neurons complete
                         busy <= 1'b0;
@@ -97,6 +110,28 @@ module layer3_generator_v2 (
                 end
             end else if (done) begin
                 done <= 1'b0;  // Clear done after 1 cycle
+            end
+            // Output pipeline: write to flat_output
+            if (write_output_reg) begin
+                flat_output[(TOTAL_NEURONS - 1 - neuron_idx_out_reg) * 16 +: 16] <= acc_out_reg;
+                if (neuron_idx_out_reg == 0) begin
+                    $display("DEBUG: neuron0 out=%0d", acc_out_reg);
+                end
+                write_output_reg <= 1'b0;
+            end
+            // Write output.mem after all outputs are ready and pipeline is valid
+            if (done && !output_written && pipeline_valid) begin
+                memfile = $fopen("D:/WILLGAN/hardware/layers/output.mem", "w");
+                if (memfile == 0) begin
+                    $display("ERROR: Could not open output.mem for writing!");
+                end else begin
+                    for (integer j = 0; j < TOTAL_NEURONS; j = j + 1) begin
+                        $fdisplay(memfile, "%h", flat_output[(TOTAL_NEURONS-1-j)*16 +: 16]);
+                    end
+                    $fclose(memfile);
+                    $display("Layer3 output written to output.mem");
+                end
+                output_written <= 1'b1;
             end
         end
     end

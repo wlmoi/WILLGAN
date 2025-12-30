@@ -2,7 +2,7 @@
 // tanh_lut.v
 // Piecewise linear tanh approximation for Q6.10 input/output
 // out = x/2 for |x| < 1.5, saturate to +/-1 for large |x|
-module tanh_lut #(parameter W = 16) (
+module tanh #(parameter W = 16) (
     input  signed [W-1:0] in,
     output reg signed [W-1:0] out
 );

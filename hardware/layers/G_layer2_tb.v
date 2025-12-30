@@ -14,7 +14,7 @@ module G_layer2_tb;
 	wire done;
 
 	// Instantiate DUT
-	layer2_generator_hw dut (
+	layer2_generator_v2 dut (
 		.clk(clk),
 		.rst(rst),
 		.start(start),
