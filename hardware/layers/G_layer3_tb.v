@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "layer3_generator_v2.v"
+
 module G_layer3_tb;
         integer clk_count;
     localparam N_IN = 256;
@@ -47,7 +49,7 @@ module G_layer3_tb;
 
     initial begin
         // Load input from layer2_relu_output.mem
-        $readmemh("hardware/layers/mem/layer2_relu_output.mem", input_vec);
+        $readmemh("d:/WILLGAN/hardware/layers/mem/layer2_relu_output.mem", input_vec);
 
         rst = 1; start = 0; flat_input = 0;
         clk_count = 0;

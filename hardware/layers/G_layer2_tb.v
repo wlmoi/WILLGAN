@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "layer2_generator_v2.v"
 
 module G_layer2_tb;
 		integer clk_count;
@@ -85,7 +86,7 @@ module G_layer2_tb;
 		   $write("], dtype=np.int16)\n");
 
 		   // Save output to mem/layer2_relu_output.mem (hex, 16-bit signed)
-		   $writememh("mem/layer2_relu_output.mem", output_vec);
+		   $writememh("../layers/mem/layer2_relu_output.mem", output_vec);
 		   $writememh("D:/WILLGAN/hardware/layers/mem/layer2_relu_output.mem", output_vec);
 
 		   $display("Clock cycles: %0d", clk_count);

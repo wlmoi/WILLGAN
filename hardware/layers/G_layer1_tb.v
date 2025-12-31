@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "layer1_generator_v2.v"
+
 module G_layer1_tb;
         integer clk_count;
     // Parameters

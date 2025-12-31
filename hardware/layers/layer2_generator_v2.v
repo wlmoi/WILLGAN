@@ -20,9 +20,7 @@ module layer2_generator_v2(
         `ifndef SYNTHESIS
     initial begin
         // Expect mem files in repo mem/ or absolute path
-        $readmemh("hardware/layers/mem/epoch300_G_l2_W.mem", weights);
         $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l2_W.mem", weights);
-        $readmemh("hardware/layers/mem/epoch300_G_l2_B.mem", biases);
         $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l2_B.mem", biases);
     end
         `endif

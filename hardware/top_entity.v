@@ -26,7 +26,10 @@ module top_entity (
 	input  wire [15:0] data_in,
 	output wire [15:0] data_out,
 	output wire        valid,
-	output wire        busy
+	output wire        busy,
+	output reg  [2:0]  state,        // Debug FSM state
+	output reg  [6:0]  input_count,  // Debug input counter
+	output reg  [9:0]  output_count  // Debug output counter
 );
 	// Serial input register (64x16bit)
 	wire [5:0] in_rd_addr;
@@ -78,6 +81,28 @@ module top_entity (
 
 	// FSM control (sederhana, bisa dioptimasi lebih lanjut)
 	// ...FSM logic, valid, busy, data_out assignment, dan pipeline control di sini...
+
+	// Debug signals assignment (dummy, silakan ganti dengan logika FSM Anda)
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			state <= 0;
+			input_count <= 0;
+			output_count <= 0;
+		end else begin
+			// Dummy increment untuk debug, ganti dengan logika FSM asli
+			if (start && input_count < 64)
+				input_count <= input_count + 1;
+			if (out_en && output_count < 784)
+				output_count <= output_count + 1;
+			// Contoh perubahan state
+			if (start)
+				state <= 1;
+			else if (input_count == 64)
+				state <= 2;
+			else if (output_count == 784)
+				state <= 3;
+		end
+	end
 
 	// Output assignment (placeholder)
 	assign data_out = out_dout;

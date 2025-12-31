@@ -28,8 +28,8 @@ module layer1_generator_v2 (
     localparam TOTAL_INPUTS = 64;
     
     initial begin
-        $readmemh("mem/epoch300_G_l1_W.mem", weights);
-        $readmemh("mem/epoch300_G_l1_B.mem", biases);
+        $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l1_W.mem", weights);
+        $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l1_B.mem", biases);
     end
 
     // Sequential MAC computation
