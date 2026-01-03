@@ -196,3 +196,5 @@ selectTree(PAResourceItoN.MsgTreePanel_MESSAGE_VIEW_TREE, "[, Synthesis, [Synth 
 selectTree(PAResourceItoN.MsgTreePanel_MESSAGE_VIEW_TREE, "[, Synthesis, [Common 17-69] Command failed: Synthesis failed - please see the console or run log file for details. ]", 4, false); // u.d (PAResourceItoN.MsgTreePanel_MESSAGE_VIEW_TREE)
 // HMemoryUtils.trashcanNow. Engine heap size: 1,062 MB. GUI used memory: 74 MB. Current time: 1/3/26, 11:06:54 PM WIB
 // HMemoryUtils.trashcanNow. Engine heap size: 1,062 MB. GUI used memory: 74 MB. Current time: 1/3/26, 11:07:34 PM WIB
+// HMemoryUtils.trashcanNow. Engine heap size: 1,062 MB. GUI used memory: 74 MB. Current time: 1/3/26, 11:08:15 PM WIB
+// HMemoryUtils.trashcanNow. Engine heap size: 1,062 MB. GUI used memory: 74 MB. Current time: 1/3/26, 11:08:55 PM WIB
