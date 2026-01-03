@@ -1,0 +1,26 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Sat Jan  3 19:32:40 2026
+# Process ID         : 18600
+# Current directory  : D:/WILLGAN
+# Command line       : vivado.exe -mode batch -source build_project.tcl -log build.log -journal build.jou
+# Log file           : D:/WILLGAN/build.log
+# Journal file       : D:/WILLGAN\build.jou
+# Running On         : DESKTOP-3S5LN80
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+# CPU Frequency      : 2592 MHz
+# CPU Physical cores : 6
+# CPU Logical cores  : 12
+# Host memory        : 17095 MB
+# Swap memory        : 19327 MB
+# Total Virtual      : 36422 MB
+# Available Virtual  : 6538 MB
+#-----------------------------------------------------------
+source build_project.tcl
+couldn't read file "build_project.tcl": no such file or directory
+INFO: [Common 17-206] Exiting Vivado at Sat Jan  3 19:32:45 2026...

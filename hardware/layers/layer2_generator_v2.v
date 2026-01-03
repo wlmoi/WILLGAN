@@ -16,14 +16,11 @@ module layer2_generator_v2(
     (* rom_style = "block" *) reg signed [15:0] weights [0:N*N-1];
     (* rom_style = "block" *) reg signed [15:0] biases [0:N-1];
 
-        // For simulation only. Remove or guard for synthesis.
-        `ifndef SYNTHESIS
     initial begin
         // Expect mem files in repo mem/ or absolute path
         $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l2_W.mem", weights);
         $readmemh("d:/WILLGAN/hardware/layers/mem/epoch300_G_l2_B.mem", biases);
     end
-        `endif
 
     // State
     reg [8:0] neuron_idx; // 0..255
